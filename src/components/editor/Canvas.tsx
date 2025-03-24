@@ -31,6 +31,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Initialize canvas context
   useEffect(() => {
@@ -63,15 +64,20 @@ const Canvas: React.FC<CanvasProps> = ({
 
   // Load image when URL changes
   useEffect(() => {
-    if (!imageUrl || !ctx) {
+    if (!imageUrl) {
       setImageLoaded(false);
       return;
     }
+
+    setImageLoaded(false);
+    setImageLoadError(false);
+    console.log("Loading image from URL:", imageUrl);
 
     const img = new Image();
     img.crossOrigin = "anonymous";
     
     img.onload = () => {
+      console.log("Image loaded successfully, dimensions:", img.width, "x", img.height);
       setImage(img);
       setImageLoaded(true);
       
@@ -104,26 +110,30 @@ const Canvas: React.FC<CanvasProps> = ({
         setScale(newScale);
         
         // Draw image
-        ctx.clearRect(0, 0, newWidth, newHeight);
-        ctx.drawImage(img, 0, 0, newWidth, newHeight);
-        
-        // Initialize selection layer
-        const newSelectionLayer = ctx.createImageData(newWidth, newHeight);
-        setSelectionLayer(newSelectionLayer);
-        
-        toast.success("Image loaded successfully");
+        const context = canvasRef.current.getContext("2d", { willReadFrequently: true });
+        if (context) {
+          context.clearRect(0, 0, newWidth, newHeight);
+          context.drawImage(img, 0, 0, newWidth, newHeight);
+          
+          // Initialize selection layer
+          const newSelectionLayer = context.createImageData(newWidth, newHeight);
+          setSelectionLayer(newSelectionLayer);
+          setCtx(context);
+          
+          toast.success("Image loaded successfully");
+        }
       }
     };
     
-    img.onerror = () => {
-      console.error("Failed to load image:", imageUrl);
+    img.onerror = (e) => {
+      console.error("Failed to load image:", imageUrl, e);
       toast.error("Failed to load image");
       setImageLoaded(false);
+      setImageLoadError(true);
     };
     
     img.src = imageUrl;
-    console.log("Loading image from URL:", imageUrl);
-  }, [imageUrl, ctx, canvasSize]);
+  }, [imageUrl]);
 
   // Draw function for brush
   const draw = (x: number, y: number) => {
@@ -344,7 +354,7 @@ const Canvas: React.FC<CanvasProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {imageLoaded && imageUrl ? (
+        {imageLoaded && image ? (
           <canvas
             ref={canvasRef}
             onMouseDown={handleMouseDown}
@@ -356,10 +366,35 @@ const Canvas: React.FC<CanvasProps> = ({
               cursor: "crosshair",
             }}
           />
-        ) : imageUrl && !imageLoaded ? (
+        ) : imageUrl && !imageLoaded && !imageLoadError ? (
           <div className="flex flex-col items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
             <p className="text-sm text-muted-foreground">Loading image...</p>
+          </div>
+        ) : imageLoadError ? (
+          <div className="flex flex-col items-center justify-center">
+            <div className="bg-red-100 rounded-full p-4 mb-4">
+              <ImageIcon className="h-8 w-8 text-red-400" />
+            </div>
+            <p className="text-muted-foreground text-center font-medium mb-2">
+              Failed to load image
+            </p>
+            <p className="text-muted-foreground text-sm text-center mb-4">
+              Please try uploading again
+            </p>
+            <input
+              type="file"
+              id="canvas-file-upload-retry"
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+            <label
+              htmlFor="canvas-file-upload-retry"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors cursor-pointer"
+            >
+              Try Again
+            </label>
           </div>
         ) : (
           <div 

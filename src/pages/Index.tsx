@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { client } from "@gradio/client";
 import { toast } from "sonner";
@@ -58,8 +59,12 @@ const Index = () => {
       setHistoryIndex(-1);
     };
     
-    reader.readAsDataURL(file);
-    toast.success("Image uploaded successfully");
+    if (file.type.match('image.*')) {
+      reader.readAsDataURL(file);
+      toast.success("Image uploaded successfully");
+    } else {
+      toast.error("Please upload a valid image file");
+    }
   };
   
   // Handle selection change from canvas
