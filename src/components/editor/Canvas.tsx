@@ -30,6 +30,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Initialize canvas context
   useEffect(() => {
@@ -62,13 +63,17 @@ const Canvas: React.FC<CanvasProps> = ({
 
   // Load image when URL changes
   useEffect(() => {
-    if (!imageUrl || !ctx) return;
+    if (!imageUrl || !ctx) {
+      setImageLoaded(false);
+      return;
+    }
 
     const img = new Image();
     img.crossOrigin = "anonymous";
     
     img.onload = () => {
       setImage(img);
+      setImageLoaded(true);
       
       // Calculate scale to fit image in canvas
       if (canvasRef.current && containerRef.current) {
@@ -111,7 +116,9 @@ const Canvas: React.FC<CanvasProps> = ({
     };
     
     img.onerror = () => {
+      console.error("Failed to load image:", imageUrl);
       toast.error("Failed to load image");
+      setImageLoaded(false);
     };
     
     img.src = imageUrl;
@@ -337,7 +344,7 @@ const Canvas: React.FC<CanvasProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {imageUrl ? (
+        {imageLoaded && imageUrl ? (
           <canvas
             ref={canvasRef}
             onMouseDown={handleMouseDown}
@@ -349,6 +356,11 @@ const Canvas: React.FC<CanvasProps> = ({
               cursor: "crosshair",
             }}
           />
+        ) : imageUrl && !imageLoaded ? (
+          <div className="flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p className="text-sm text-muted-foreground">Loading image...</p>
+          </div>
         ) : (
           <div 
             className={cn(

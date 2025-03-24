@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { client } from "@gradio/client";
 import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import Canvas from "@/components/editor/Canvas";
 import EditorControls from "@/components/editor/EditorControls";
 import { Button } from "@/components/ui/button";
-import { Download, Sparkles, SplitSquareVertical } from "lucide-react";
+import { Download, RotateCcw, ArrowLeft, Sparkles, SplitSquareVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
@@ -26,14 +26,31 @@ const Index = () => {
   const [colorStrength, setColorStrength] = useState(0.55);
   const [inpaintStrength, setInpaintStrength] = useState(1.0);
   const [showSideBySide, setShowSideBySide] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  
+  // Update history when image changes
+  useEffect(() => {
+    if (generatedImage && !history.includes(generatedImage)) {
+      const newHistory = [...history.slice(0, historyIndex + 1), generatedImage];
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  }, [generatedImage]);
   
   // Handle file upload
   const handleUpload = (file: File) => {
     const reader = new FileReader();
     
     reader.onloadend = () => {
-      setUploadedImage(reader.result as string);
+      const result = reader.result as string;
+      setUploadedImage(result);
       setGeneratedImage(null);
+      
+      // Reset selection and history when new image is uploaded
+      setSelection(null);
+      setHistory([]);
+      setHistoryIndex(-1);
     };
     
     reader.readAsDataURL(file);
@@ -81,10 +98,6 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Base64 encode the uploaded image and selection mask
-      const base64Image = dataURLToBase64(uploadedImage);
-      const base64Mask = selectionToBase64(selection);
-      
       // Create API input with the correct format
       const apiInput = [
         prompt,                    // x
@@ -104,7 +117,7 @@ const Index = () => {
       
       console.log("API Input:", apiInput);
       
-      // Connect to the Gradio client - passing the space identifier and a flag for status updates
+      // Connect to the Gradio client
       const gradioClient = await client("AI4Editing/MagicQuill", { status_callback: console.log });
       
       // Make the API request with the array of inputs
@@ -113,9 +126,9 @@ const Index = () => {
       console.log("API Result:", result);
       
       // Check if the result contains the generated image data
-      if (result && result[0]) {
+      if (result && result.data && result.data[0]) {
         // Set the generated image with the base64 data
-        setGeneratedImage(`data:image/png;base64,${result[0]}`);
+        setGeneratedImage(`data:image/png;base64,${result.data[0]}`);
         toast.success("Image generated successfully");
       } else {
         throw new Error("No image data returned from the API");
@@ -125,6 +138,41 @@ const Index = () => {
       toast.error("Failed to generate image. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Handle undo
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setGeneratedImage(history[historyIndex - 1]);
+    }
+  };
+  
+  // Handle redo
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setGeneratedImage(history[historyIndex + 1]);
+    }
+  };
+  
+  // Reset the current editing session
+  const handleReset = () => {
+    setGeneratedImage(null);
+    setSelection(null);
+    setPrompt("");
+    setNegativePrompt("");
+    toast.info("Editor reset");
+  };
+  
+  // Use generated image as the source for further editing
+  const handleUseGeneratedImage = () => {
+    if (generatedImage) {
+      setUploadedImage(generatedImage);
+      setGeneratedImage(null);
+      setSelection(null);
+      toast.success("Generated image set as new source");
     }
   };
   
@@ -161,6 +209,31 @@ const Index = () => {
           {/* Left Column: Canvas and Controls */}
           <div className="space-y-8">
             <div className="glass-panel rounded-xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-medium">Canvas</h2>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    className="glass-button"
+                    title="Undo"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRedo}
+                    disabled={historyIndex >= history.length - 1}
+                    className="glass-button"
+                    title="Redo"
+                  >
+                    <ArrowLeft className="h-4 w-4 rotate-180" />
+                  </Button>
+                </div>
+              </div>
               <Canvas
                 imageUrl={uploadedImage}
                 onSelectionChange={handleSelectionChange}
@@ -208,15 +281,35 @@ const Index = () => {
               
               <div className="flex items-center space-x-2">
                 {generatedImage && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownload}
-                    className="glass-button"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleReset}
+                      className="glass-button"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reset
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleUseGeneratedImage}
+                      className="glass-button"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Edit This
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownload}
+                      className="glass-button"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </>
                 )}
                 
                 {uploadedImage && generatedImage && (
