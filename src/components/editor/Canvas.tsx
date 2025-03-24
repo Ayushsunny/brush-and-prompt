@@ -79,7 +79,6 @@ const Canvas: React.FC<CanvasProps> = ({
     img.onload = () => {
       console.log("Image loaded successfully, dimensions:", img.width, "x", img.height);
       setImage(img);
-      setImageLoaded(true);
       
       // Calculate scale to fit image in canvas
       if (canvasRef.current && containerRef.current) {
@@ -120,6 +119,8 @@ const Canvas: React.FC<CanvasProps> = ({
           setSelectionLayer(newSelectionLayer);
           setCtx(context);
           
+          // Mark as loaded only after everything is set up
+          setImageLoaded(true);
           toast.success("Image loaded successfully");
         }
       }
@@ -366,7 +367,7 @@ const Canvas: React.FC<CanvasProps> = ({
               cursor: "crosshair",
             }}
           />
-        ) : imageUrl && !imageLoaded && !imageLoadError ? (
+        ) : imageUrl && !imageLoadError ? (
           <div className="flex flex-col items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
             <p className="text-sm text-muted-foreground">Loading image...</p>
