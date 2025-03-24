@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Client } from "@gradio/client";
+import { client } from "@gradio/client";
 import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import Canvas from "@/components/editor/Canvas";
@@ -106,10 +106,10 @@ const Index = () => {
       console.log("API Input:", apiInput);
       
       // Connect to the Gradio client
-      const client = await Client.connect("AI4Editing/MagicQuill");
+      const gradioClient = await client("AI4Editing/MagicQuill");
       
       // Make the API request
-      const result = await client.predict("/generate_image_handler", apiInput);
+      const result = await gradioClient.predict("/generate_image_handler", apiInput);
       
       console.log("API Result:", result);
       
