@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { client } from "@gradio/client";
 import { toast } from "sonner";
@@ -8,6 +7,12 @@ import EditorControls from "@/components/editor/EditorControls";
 import { Button } from "@/components/ui/button";
 import { Download, RotateCcw, ArrowLeft, Sparkles, SplitSquareVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Define an interface for the API response
+interface GradioResponse {
+  data: string[];
+  [key: string]: any;
+}
 
 const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -126,9 +131,15 @@ const Index = () => {
       console.log("API Result:", result);
       
       // Check if the result contains the generated image data
-      if (result && result.data && result.data[0]) {
+      // Type guard to ensure result has the expected structure
+      if (result && 
+          typeof result === 'object' && 
+          'data' in result && 
+          Array.isArray((result as GradioResponse).data) && 
+          (result as GradioResponse).data.length > 0) {
+        
         // Set the generated image with the base64 data
-        setGeneratedImage(`data:image/png;base64,${result.data[0]}`);
+        setGeneratedImage(`data:image/png;base64,${(result as GradioResponse).data[0]}`);
         toast.success("Image generated successfully");
       } else {
         throw new Error("No image data returned from the API");
