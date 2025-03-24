@@ -85,38 +85,37 @@ const Index = () => {
       const base64Image = dataURLToBase64(uploadedImage);
       const base64Mask = selectionToBase64(selection);
       
-      // Create a combined input for the API
-      const apiInput = {
-        x: prompt,
-        ckpt_name: selectedModel,
-        negative_prompt: negativePrompt,
-        fine_edge: "enable",
-        grow_size: 15,
-        edge_strength: edgeStrength,
-        color_strength: colorStrength,
-        inpaint_strength: inpaintStrength,
-        seed: seed,
-        steps: steps,
-        cfg: cfg,
-        sampler_name: sampler,
-        scheduler: scheduler,
-        // Additional fields would go here if needed
-      };
+      // Create API input with the correct format
+      const apiInput = [
+        prompt,                    // x
+        selectedModel,             // ckpt_name
+        negativePrompt,            // negative_prompt
+        "enable",                  // fine_edge
+        15,                        // grow_size
+        edgeStrength,              // edge_strength
+        colorStrength,             // color_strength
+        inpaintStrength,           // inpaint_strength
+        seed,                      // seed
+        steps,                     // steps
+        cfg,                       // cfg
+        sampler,                   // sampler_name
+        scheduler,                 // scheduler
+      ];
       
       console.log("API Input:", apiInput);
       
-      // Connect to the Gradio client
-      const gradioClient = await client("AI4Editing/MagicQuill");
+      // Connect to the Gradio client - passing the space identifier and a flag for status updates
+      const gradioClient = await client("AI4Editing/MagicQuill", { status_callback: console.log });
       
-      // Make the API request
+      // Make the API request with the array of inputs
       const result = await gradioClient.predict("/generate_image_handler", apiInput);
       
       console.log("API Result:", result);
       
       // Check if the result contains the generated image data
-      if (result.data) {
-        // Assuming the result.data is a base64 image or URL
-        setGeneratedImage(`data:image/png;base64,${result.data}`);
+      if (result && result[0]) {
+        // Set the generated image with the base64 data
+        setGeneratedImage(`data:image/png;base64,${result[0]}`);
         toast.success("Image generated successfully");
       } else {
         throw new Error("No image data returned from the API");
@@ -165,6 +164,7 @@ const Index = () => {
               <Canvas
                 imageUrl={uploadedImage}
                 onSelectionChange={handleSelectionChange}
+                onUpload={handleUpload}
                 className="mb-6"
               />
             </div>

@@ -2,17 +2,20 @@
 import React, { useRef, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Upload, ImageIcon } from "lucide-react";
 
 interface CanvasProps {
   imageUrl: string | null;
   onSelectionChange: (selection: ImageData | null) => void;
   className?: string;
+  onUpload?: (file: File) => void;
 }
 
 const Canvas: React.FC<CanvasProps> = ({ 
   imageUrl, 
   onSelectionChange,
-  className 
+  className,
+  onUpload
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,6 +29,7 @@ const Canvas: React.FC<CanvasProps> = ({
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
   // Initialize canvas context
   useEffect(() => {
@@ -111,6 +115,7 @@ const Canvas: React.FC<CanvasProps> = ({
     };
     
     img.src = imageUrl;
+    console.log("Loading image from URL:", imageUrl);
   }, [imageUrl, ctx, canvasSize]);
 
   // Draw function for brush
@@ -244,6 +249,33 @@ const Canvas: React.FC<CanvasProps> = ({
     toast.info("Selection cleared");
   };
 
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0] && onUpload) {
+      onUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Handle file input change
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && onUpload) {
+      onUpload(e.target.files[0]);
+    }
+  };
+
   return (
     <div className={cn("relative flex flex-col", className)}>
       <div className="flex justify-between items-center mb-4">
@@ -301,6 +333,9 @@ const Canvas: React.FC<CanvasProps> = ({
       <div 
         ref={containerRef}
         className="relative border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden w-full h-[500px]"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         {imageUrl ? (
           <canvas
@@ -315,8 +350,34 @@ const Canvas: React.FC<CanvasProps> = ({
             }}
           />
         ) : (
-          <div className="text-muted-foreground text-center">
-            <p>Upload an image to begin</p>
+          <div 
+            className={cn(
+              "flex flex-col items-center justify-center w-full h-full p-6 transition-colors duration-200",
+              isDragging ? "bg-blue-50 border-blue-300" : ""
+            )}
+          >
+            <div className="bg-slate-100 rounded-full p-4 mb-4">
+              <Upload className="h-8 w-8 text-slate-400" />
+            </div>
+            <p className="text-muted-foreground text-center font-medium mb-2">
+              Drag & drop an image here
+            </p>
+            <p className="text-muted-foreground text-sm text-center mb-4">
+              or click to browse files
+            </p>
+            <input
+              type="file"
+              id="canvas-file-upload"
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+            <label
+              htmlFor="canvas-file-upload"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors cursor-pointer"
+            >
+              Browse Files
+            </label>
           </div>
         )}
       </div>
