@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from "react";
-import { client } from "@gradio/client";
+import axios from "axios";
 import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import Canvas from "@/components/editor/Canvas";
@@ -12,8 +11,10 @@ import { cn } from "@/lib/utils";
 // Define an interface for the API response
 interface GradioResponse {
   data: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
+
+const PROXY_API_URL = 'http://localhost:3000/api/process-image';
 
 const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -24,7 +25,8 @@ const Index = () => {
   const [negativePrompt, setNegativePrompt] = useState("");
   const [selectedModel, setSelectedModel] = useState("SD1.5/DreamShaper.safetensors");
   const [steps, setSteps] = useState(20);
-  const [cfg, setCfg] = useState(7.0);
+  const [cfg, setCfg] = useState(5.0);
+  const [growSize, setGrowSize] = useState(15);
   const [sampler, setSampler] = useState("euler_ancestral");
   const [scheduler, setScheduler] = useState("karras");
   const [seed, setSeed] = useState(-1);
@@ -34,7 +36,7 @@ const Index = () => {
   const [showSideBySide, setShowSideBySide] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  
+
   // Update history when image changes
   useEffect(() => {
     if (generatedImage && !history.includes(generatedImage)) {
@@ -42,23 +44,23 @@ const Index = () => {
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
     }
-  }, [generatedImage]);
-  
+  }, [generatedImage, history, historyIndex]);
+
   // Handle file upload
   const handleUpload = (file: File) => {
     const reader = new FileReader();
-    
+
     reader.onloadend = () => {
       const result = reader.result as string;
       setUploadedImage(result);
       setGeneratedImage(null);
-      
+
       // Reset selection and history when new image is uploaded
       setSelection(null);
       setHistory([]);
       setHistoryIndex(-1);
     };
-    
+
     if (file.type.match('image.*')) {
       reader.readAsDataURL(file);
       toast.success("Image uploaded successfully");
@@ -66,88 +68,106 @@ const Index = () => {
       toast.error("Please upload a valid image file");
     }
   };
-  
+
   // Handle selection change from canvas
   const handleSelectionChange = (newSelection: ImageData | null) => {
     setSelection(newSelection);
   };
-  
+
   // Base64 encode data URL
   const dataURLToBase64 = (dataURL: string) => {
     // Remove the data URL prefix and return the base64 part
     return dataURL.split(",")[1];
   };
-  
+
   // Convert selection mask to base64
-  const selectionToBase64 = (selection: ImageData): string => {
-    const canvas = document.createElement("canvas");
-    canvas.width = selection.width;
-    canvas.height = selection.height;
-    
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return "";
-    
-    ctx.putImageData(selection, 0, 0);
-    
-    // Get the data URL and convert to base64
-    return dataURLToBase64(canvas.toDataURL("image/png"));
+  const selectionToBase64 = (selection: ImageData, originalImageUrl: string, mimeType: string = "image/png"): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject("Could not create canvas context");
+          return;
+        }
+
+        // Create a blank, transparent canvas the size of the original image
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Calculate the position to place the selection
+        // This assumes the selection is already in the correct coordinate space
+        // If not, you would need additional scaling logic here
+        ctx.putImageData(selection, 0, 0);
+
+        resolve(canvas.toDataURL(mimeType));
+      };
+
+      img.onerror = () => reject("Failed to load original image");
+      img.src = originalImageUrl;
+    });
   };
-  
+
   // Handle generate image
+
   const handleGenerate = async () => {
     if (!uploadedImage || !prompt) {
       toast.error("Please upload an image and enter a prompt");
       return;
     }
-    
+
     if (!selection) {
       toast.error("Please select an area using the brush tool");
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
-      // Create API input with the correct format
-      const apiInput = [
-        prompt,                    // x
-        selectedModel,             // ckpt_name
-        negativePrompt,            // negative_prompt
-        "enable",                  // fine_edge
-        15,                        // grow_size
-        edgeStrength,              // edge_strength
-        colorStrength,             // color_strength
-        inpaintStrength,           // inpaint_strength
-        seed,                      // seed
-        steps,                     // steps
-        cfg,                       // cfg
-        sampler,                   // sampler_name
-        scheduler,                 // scheduler
-      ];
-      
-      console.log("API Input:", apiInput);
-      
-      // Connect to the Gradio client
-      const gradioClient = await client("AI4Editing/MagicQuill", { status_callback: console.log });
-      
-      // Make the API request with the array of inputs
-      const result = await gradioClient.predict("/generate_image_handler", apiInput);
-      
-      console.log("API Result:", result);
-      
-      // Check if the result contains the generated image data
-      // Type guard to ensure result has the expected structure
-      if (result && 
-          typeof result === 'object' && 
-          'data' in result && 
-          Array.isArray((result as GradioResponse).data) && 
-          (result as GradioResponse).data.length > 0) {
-        
-        // Set the generated image with the base64 data
-        setGeneratedImage(`data:image/png;base64,${(result as GradioResponse).data[0]}`);
-        toast.success("Image generated successfully");
-      } else {
-        throw new Error("No image data returned from the API");
+      const uploadedMimeType = uploadedImage.startsWith("data:image/jpeg") ? "image/jpeg" : "image/png";
+
+      // Use the async function to get properly sized mask
+      const selectionDataUrl = await selectionToBase64(selection, uploadedImage, uploadedMimeType);
+
+      const payload = {
+        uploadedImage,
+        selection: selectionDataUrl,
+        prompt,
+        negativePrompt,
+        selectedModel,
+        steps,
+        cfg,
+        growSize,
+        sampler,
+        scheduler,
+        seed,
+        edgeStrength,
+        colorStrength,
+        inpaintStrength
+      };
+
+      const response = await axios.post(PROXY_API_URL, payload);
+      console.log("API Response:", JSON.stringify(response.data, null, 2));
+
+      // Update the response handling in handleGenerate:
+      if (response.data.success) {
+        const receivedImage = response.data.generatedImage;
+
+        if (typeof receivedImage === 'string') {
+          if (receivedImage.startsWith('data:image')) {
+            setGeneratedImage(receivedImage);
+          } else {
+            // Handle raw base64 string
+            setGeneratedImage(`data:image/png;base64,${receivedImage}`);
+          }
+          toast.success("Image generated successfully");
+        } else {
+          console.error("Unexpected image format:", receivedImage);
+          throw new Error("Server returned invalid image format");
+        }
       }
     } catch (error) {
       console.error("Error generating image:", error);
@@ -156,7 +176,7 @@ const Index = () => {
       setIsLoading(false);
     }
   };
-  
+
   // Handle undo
   const handleUndo = () => {
     if (historyIndex > 0) {
@@ -164,7 +184,7 @@ const Index = () => {
       setGeneratedImage(history[historyIndex - 1]);
     }
   };
-  
+
   // Handle redo
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
@@ -172,7 +192,7 @@ const Index = () => {
       setGeneratedImage(history[historyIndex + 1]);
     }
   };
-  
+
   // Reset the current editing session
   const handleReset = () => {
     setGeneratedImage(null);
@@ -181,7 +201,7 @@ const Index = () => {
     setNegativePrompt("");
     toast.info("Editor reset");
   };
-  
+
   // Use generated image as the source for further editing
   const handleUseGeneratedImage = () => {
     if (generatedImage) {
@@ -191,26 +211,26 @@ const Index = () => {
       toast.success("Generated image set as new source");
     }
   };
-  
+
   // Handle download generated image
   const handleDownload = () => {
     if (!generatedImage) return;
-    
+
     const link = document.createElement("a");
     link.href = generatedImage;
     link.download = `brush-and-prompt-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast.success("Image downloaded successfully");
   };
-  
+
   // Toggle side-by-side view
   const toggleSideBySide = () => {
     setShowSideBySide(!showSideBySide);
   };
-  
+
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-8 animate-fade-in">
@@ -220,7 +240,7 @@ const Index = () => {
             Upload an image, select an area with the brush, and transform it with a prompt
           </p>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Canvas and Controls */}
           <div className="space-y-8">
@@ -257,7 +277,7 @@ const Index = () => {
                 className="mb-6"
               />
             </div>
-            
+
             <div className="glass-panel rounded-xl p-6 shadow-sm">
               <EditorControls
                 onUpload={handleUpload}
@@ -289,12 +309,12 @@ const Index = () => {
               />
             </div>
           </div>
-          
+
           {/* Right Column: Results */}
           <div className="glass-panel rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-medium">Result</h2>
-              
+
               <div className="flex items-center space-x-2">
                 {generatedImage && (
                   <>
@@ -327,7 +347,7 @@ const Index = () => {
                     </Button>
                   </>
                 )}
-                
+
                 {uploadedImage && generatedImage && (
                   <Button
                     variant="outline"
@@ -341,7 +361,7 @@ const Index = () => {
                 )}
               </div>
             </div>
-            
+
             <div className={cn(
               "border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden w-full h-[500px]",
               showSideBySide ? "flex-row" : "flex-col"
@@ -349,17 +369,17 @@ const Index = () => {
               {showSideBySide && uploadedImage ? (
                 <>
                   <div className="flex-1 h-full flex items-center justify-center p-4 border-r border-slate-200">
-                    <img 
-                      src={uploadedImage} 
-                      alt="Original" 
+                    <img
+                      src={uploadedImage}
+                      alt="Original"
                       className="max-w-full max-h-full object-contain rounded-md"
                     />
                   </div>
                   <div className="flex-1 h-full flex items-center justify-center p-4">
                     {generatedImage ? (
-                      <img 
-                        src={generatedImage} 
-                        alt="Generated" 
+                      <img
+                        src={generatedImage}
+                        alt="Generated"
                         className="max-w-full max-h-full object-contain rounded-md"
                       />
                     ) : (
@@ -371,9 +391,9 @@ const Index = () => {
                   </div>
                 </>
               ) : generatedImage ? (
-                <img 
-                  src={generatedImage} 
-                  alt="Generated" 
+                <img
+                  src={generatedImage}
+                  alt="Generated"
                   className="max-w-full max-h-full object-contain rounded-md animate-scale-in"
                 />
               ) : (

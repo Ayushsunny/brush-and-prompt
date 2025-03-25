@@ -11,8 +11,8 @@ interface CanvasProps {
   onUpload?: (file: File) => void;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ 
-  imageUrl, 
+const Canvas: React.FC<CanvasProps> = ({
+  imageUrl,
   onSelectionChange,
   className,
   onUpload
@@ -36,10 +36,10 @@ const Canvas: React.FC<CanvasProps> = ({
   // Initialize canvas context
   useEffect(() => {
     if (!canvasRef.current) return;
-    
+
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d", { willReadFrequently: true });
-    
+
     if (context) {
       setCtx(context);
     }
@@ -56,7 +56,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
     handleResize();
     window.addEventListener("resize", handleResize);
-    
+
     return () => {
       window.removeEventListener("resize", handleResize);
     };
@@ -75,21 +75,21 @@ const Canvas: React.FC<CanvasProps> = ({
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    
+
     img.onload = () => {
       console.log("Image loaded successfully, dimensions:", img.width, "x", img.height);
       setImage(img);
-      
+
       // Calculate scale to fit image in canvas
       if (canvasRef.current && containerRef.current) {
         const containerWidth = containerRef.current.clientWidth;
         const containerHeight = containerRef.current.clientHeight;
-        
+
         const imgAspect = img.width / img.height;
         const containerAspect = containerWidth / containerHeight;
-        
+
         let newWidth, newHeight;
-        
+
         if (imgAspect > containerAspect) {
           // Image is wider than container (relative to their heights)
           newWidth = containerWidth;
@@ -99,74 +99,74 @@ const Canvas: React.FC<CanvasProps> = ({
           newHeight = containerHeight;
           newWidth = containerHeight * imgAspect;
         }
-        
+
         // Set canvas dimensions to match scaled image
         canvasRef.current.width = newWidth;
         canvasRef.current.height = newHeight;
-        
+
         // Calculate scale factor
         const newScale = newWidth / img.width;
         setScale(newScale);
-        
+
         // Draw image
         const context = canvasRef.current.getContext("2d", { willReadFrequently: true });
         if (context) {
           context.clearRect(0, 0, newWidth, newHeight);
           context.drawImage(img, 0, 0, newWidth, newHeight);
-          
+
           // Initialize selection layer
           const newSelectionLayer = context.createImageData(newWidth, newHeight);
           setSelectionLayer(newSelectionLayer);
           setCtx(context);
-          
+
           // Mark as loaded only after everything is set up
           setImageLoaded(true);
           toast.success("Image loaded successfully");
         }
       }
     };
-    
+
     img.onerror = (e) => {
       console.error("Failed to load image:", imageUrl, e);
       toast.error("Failed to load image");
       setImageLoaded(false);
       setImageLoadError(true);
     };
-    
+
     img.src = imageUrl;
   }, [imageUrl]);
 
   // Draw function for brush
   const draw = (x: number, y: number) => {
     if (!ctx || !selectionLayer) return;
-    
+
     // Create a temporary canvas for the brush stroke
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = canvasRef.current?.width || 0;
     tempCanvas.height = canvasRef.current?.height || 0;
     const tempCtx = tempCanvas.getContext("2d");
-    
+
     if (!tempCtx) return;
-    
+
     // Copy the current selection layer to the temp canvas
     tempCtx.putImageData(selectionLayer, 0, 0);
-    
+
     // Set drawing style based on mode
     tempCtx.globalCompositeOperation = selectionMode === "add" ? "source-over" : "destination-out";
-    
+
     // Draw the brush stroke
     tempCtx.beginPath();
     tempCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
     tempCtx.fillStyle = "rgba(65, 105, 225, 0.5)";
     tempCtx.fill();
-    
+
     // Get the updated selection layer
     const newSelectionLayer = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     setSelectionLayer(newSelectionLayer);
-    
+
     // Redraw everything
     redraw();
-    
+
     // Notify parent component of selection change
     onSelectionChange(newSelectionLayer);
   };
@@ -174,13 +174,13 @@ const Canvas: React.FC<CanvasProps> = ({
   // Redraw the canvas with the image and selection
   const redraw = () => {
     if (!ctx || !image || !canvasRef.current || !selectionLayer) return;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    
+
     // Draw the image
     ctx.drawImage(image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-    
+
     // Draw the selection overlay
     ctx.save();
     ctx.globalCompositeOperation = "source-over";
@@ -191,42 +191,42 @@ const Canvas: React.FC<CanvasProps> = ({
   // Mouse event handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
-    
+
     setIsDrawing(true);
-    
+
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     setLastPos({ x, y });
     draw(x, y);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasRef.current) return;
-    
+
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     // Calculate the distance between the last and current position
     const dist = Math.sqrt((x - lastPos.x) ** 2 + (y - lastPos.y) ** 2);
-    
+
     // If the distance is greater than the brush size, interpolate points
     if (dist > brushSize / 4) {
       const steps = Math.ceil(dist / (brushSize / 4));
-      
+
       for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         const interpX = lastPos.x + (x - lastPos.x) * t;
         const interpY = lastPos.y + (y - lastPos.y) * t;
-        
+
         draw(interpX, interpY);
       }
     } else {
       draw(x, y);
     }
-    
+
     setLastPos({ x, y });
   };
 
@@ -251,19 +251,19 @@ const Canvas: React.FC<CanvasProps> = ({
   // Clear selection
   const clearSelection = () => {
     if (!ctx || !canvasRef.current) return;
-    
+
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
-    
+
     const newSelectionLayer = ctx.createImageData(width, height);
     setSelectionLayer(newSelectionLayer);
-    
+
     // Redraw
     redraw();
-    
+
     // Notify parent component
     onSelectionChange(null);
-    
+
     toast.info("Selection cleared");
   };
 
@@ -281,14 +281,14 @@ const Canvas: React.FC<CanvasProps> = ({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0] && onUpload) {
       onUpload(e.dataTransfer.files[0]);
     }
   };
 
   // Handle file input change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0] && onUpload) {
       onUpload(e.target.files[0]);
     }
@@ -310,7 +310,7 @@ const Canvas: React.FC<CanvasProps> = ({
             />
             <span className="text-sm">{brushSize}px</span>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Mode:</span>
             <div className="flex items-center bg-secondary rounded-md p-1">
@@ -318,8 +318,8 @@ const Canvas: React.FC<CanvasProps> = ({
                 onClick={() => handleSelectionModeChange("add")}
                 className={cn(
                   "px-3 py-1 text-xs rounded-md transition-colors",
-                  selectionMode === "add" 
-                    ? "bg-white shadow-sm text-primary" 
+                  selectionMode === "add"
+                    ? "bg-white shadow-sm text-primary"
                     : "text-muted-foreground hover:bg-white/50"
                 )}
               >
@@ -329,8 +329,8 @@ const Canvas: React.FC<CanvasProps> = ({
                 onClick={() => handleSelectionModeChange("subtract")}
                 className={cn(
                   "px-3 py-1 text-xs rounded-md transition-colors",
-                  selectionMode === "subtract" 
-                    ? "bg-white shadow-sm text-primary" 
+                  selectionMode === "subtract"
+                    ? "bg-white shadow-sm text-primary"
                     : "text-muted-foreground hover:bg-white/50"
                 )}
               >
@@ -339,7 +339,7 @@ const Canvas: React.FC<CanvasProps> = ({
             </div>
           </div>
         </div>
-        
+
         <button
           onClick={clearSelection}
           className="text-xs px-3 py-1 bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors"
@@ -347,58 +347,41 @@ const Canvas: React.FC<CanvasProps> = ({
           Clear Selection
         </button>
       </div>
-      
-      <div 
+
+      <div
         ref={containerRef}
         className="relative border border-slate-200 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden w-full h-[500px]"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {imageLoaded && image ? (
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-            className="max-w-full max-h-full"
-            style={{
-              cursor: "crosshair",
-            }}
-          />
-        ) : imageUrl && !imageLoadError ? (
-          <div className="flex flex-col items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-sm text-muted-foreground">Loading image...</p>
-          </div>
-        ) : imageLoadError ? (
-          <div className="flex flex-col items-center justify-center">
-            <div className="bg-red-100 rounded-full p-4 mb-4">
-              <ImageIcon className="h-8 w-8 text-red-400" />
-            </div>
-            <p className="text-muted-foreground text-center font-medium mb-2">
-              Failed to load image
-            </p>
-            <p className="text-muted-foreground text-sm text-center mb-4">
-              Please try uploading again
-            </p>
-            <input
-              type="file"
-              id="canvas-file-upload-retry"
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
+        {imageUrl ? (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Canvas is always present but hidden if image is not loaded */}
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              className="max-w-full max-h-full"
+              style={{
+                cursor: "crosshair",
+                display: imageLoaded ? "block" : "none", // Hide until image loads
+              }}
             />
-            <label
-              htmlFor="canvas-file-upload-retry"
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors cursor-pointer"
-            >
-              Try Again
-            </label>
+
+            {/* Spinner Overlay (shown when image is loading) */}
+            {!imageLoaded && !imageLoadError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground mt-2">Loading image...</p>
+              </div>
+            )}
           </div>
         ) : (
-          <div 
+          // This is for when no image is uploaded yet
+          <div
             className={cn(
               "flex flex-col items-center justify-center w-full h-full p-6 transition-colors duration-200",
               isDragging ? "bg-blue-50 border-blue-300" : ""
@@ -418,7 +401,7 @@ const Canvas: React.FC<CanvasProps> = ({
               id="canvas-file-upload"
               className="hidden"
               accept="image/*"
-              onChange={handleFileChange}
+              onChange={handleFileUpload}
             />
             <label
               htmlFor="canvas-file-upload"

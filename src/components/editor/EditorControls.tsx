@@ -76,11 +76,11 @@ const EditorControls: React.FC<EditorControlsProps> = ({
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onUpload(e.target.files[0]);
-    }
-  };
+  // const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   if (e.target.files && e.target.files[0]) {
+  //     onUpload(e.target.files[0]);
+  //   }
+  // };
 
   const handleRandomSeed = () => {
     setSeed(Math.floor(Math.random() * 1000000000));
@@ -304,7 +304,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 pt-4">
-          <div className="flex-1">
+          {/* <div className="flex-1">
             <Label htmlFor="image-upload" className="w-full">
               <div className="relative w-full h-12 rounded-lg border-2 border-dashed border-slate-300 hover:border-primary/70 transition-colors flex items-center justify-center cursor-pointer bg-slate-50/50">
                 <div className="flex items-center text-muted-foreground">
@@ -320,12 +320,12 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                 />
               </div>
             </Label>
-          </div>
+          </div> */}
           
           <Button
             onClick={onGenerate}
             disabled={isLoading || !isImageUploaded || !prompt}
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 rounded-lg button-hover h-12"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 rounded-lg button-hover h-12 w-full"
           >
             {isLoading ? (
               <>
