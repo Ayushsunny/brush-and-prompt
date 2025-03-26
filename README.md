@@ -1,69 +1,81 @@
-# Welcome to your Lovable project
+# Brush & Prompt - AI Image Editing
 
-## Project info
+Brush & Prompt is an AI-powered image editing tool that allows users to upload images, make selections using a brush tool, and transform selected areas using AI-powered prompts. This project is built using **Vite**, **React**, **TypeScript**, **ShadCN**, and **TailwindCSS**.
 
-**URL**: https://lovable.dev/projects/8cdc59ae-22a9-4bdf-a3d8-2a046f941300
+## Features
+- **Image Uploading**: Users can upload images via drag-and-drop or file selection.
+- **Brush Selection Tool**: Select an area of the image for AI transformation.
+- **AI-Powered Image Transformation**: Uses AI to modify selected areas based on user prompts.
+- **Undo/Redo Functionality**: Keeps track of history for easier editing.
+- **Side-by-Side Comparison**: Allows users to compare the original and AI-generated image.
+- **Download Feature**: Save the generated images locally.
 
-## How can I edit this code?
+## Tech Stack
+- **React 18** with TypeScript
+- **Vite** for fast development and builds
+- **TailwindCSS** & **ShadCN** for styling
+- **Lucide-react** for icons
+- **React Hook Form & Zod** for form validation
+- **Axios** for API requests
+- **Sonner** for toast notifications
+- **Radix UI** components for accessible UI elements
+- **Recharts** for data visualization
 
-There are several ways of editing your application.
+## Installation
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/8cdc59ae-22a9-4bdf-a3d8-2a046f941300) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Ensure you have **Node.js** installed. Then, clone the repository and install dependencies:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/Ayushsunny/brush-and-prompt
+cd your-repo
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Running the Project
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+To start the development server:
+
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+To build the project:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run build
+```
 
-**Use GitHub Codespaces**
+To preview the built project:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm run preview
+```
 
-## What technologies are used for this project?
+## How It Works
 
-This project is built with .
+1. **Upload an Image**: Drag and drop an image or select one from your device.
+2. **Select an Area**: Use the brush tool to highlight areas for transformation.
+3. **Enter a Prompt**: Describe how you want the selected area to change.
+4. **Generate & Download**: AI processes the image and produces a transformed version. Download the image to save it locally.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Deployment
+To deploy, you can use Vercel, Netlify, or any static site hosting:
 
-## How can I deploy this project?
+```sh
+npm run build
+# Deploy the contents of the dist/ folder
+```
 
-Simply open [Lovable](https://lovable.dev/projects/8cdc59ae-22a9-4bdf-a3d8-2a046f941300) and click on Share -> Publish.
+## Contributing
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature-branch`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature-branch`)
+5. Open a Pull Request
 
-## I want to use a custom domain - is that possible?
+## License
+MIT License
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
