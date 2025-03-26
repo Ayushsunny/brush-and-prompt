@@ -109,6 +109,9 @@ const Index = () => {
           return;
         }
 
+        offscreenCtx.imageSmoothingEnabled = false;
+        offscreenCtx.imageSmoothingQuality = "high";
+
         // Create a temporary canvas to hold the scaled mask
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = scaledWidth;
@@ -119,6 +122,11 @@ const Index = () => {
           reject("Could not create temporary context");
           return;
         }
+
+        // Disable image smoothing in temp context
+        tempCtx.imageSmoothingEnabled = false;
+        tempCtx.imageSmoothingQuality = "high";
+
         tempCtx.putImageData(selection, 0, 0);
         console.log("Temporary canvas with mask drawn");
 
@@ -134,7 +142,18 @@ const Index = () => {
           origWidth,
           origHeight
         );
-        document.body.appendChild(offscreen);
+
+        // Threshold alpha values to make a binary mask
+        const imageData = offscreenCtx.getImageData(0, 0, origWidth, origHeight);
+        const data = imageData.data;
+        for (let i = 3; i < data.length; i += 4) {
+          // Original: if drawn (alpha > 128) then 255, else 0.
+          // Invert it: drawn area becomes 0 (to inpaint), and non-drawn becomes 255.
+          const binary = data[i] > 128 ? 255 : 0;
+          data[i] = 255 - binary;
+        }
+        offscreenCtx.putImageData(imageData, 0, 0);
+        // document.body.appendChild(offscreen);
         console.log("Mask upscaled to original dimensions:", offscreen.width, "x", offscreen.height);
 
         const finalDataUrl = offscreen.toDataURL(mimeType);

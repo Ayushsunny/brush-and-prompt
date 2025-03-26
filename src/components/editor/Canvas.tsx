@@ -159,7 +159,9 @@ const Canvas: React.FC<CanvasProps> = ({
     // Draw the brush stroke (circle)
     tempCtx.beginPath();
     tempCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-    tempCtx.fillStyle = "rgba(65, 105, 225, 0.5)";
+    tempCtx.fillStyle = selectionMode === "add" 
+    ? "rgba(65, 105, 225, 1)" 
+    : "rgba(0, 0, 0, 1)";
     tempCtx.fill();
   
     // Update the selection layer with the new stroke
