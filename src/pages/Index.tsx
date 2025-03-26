@@ -14,7 +14,7 @@ interface GradioResponse {
   [key: string]: unknown;
 }
 
-const PROXY_API_URL = 'http://localhost:3000/api/process-image';
+const apiUrl = import.meta.env.VITE_API_URL || "";
 
 const Index = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -214,7 +214,7 @@ const Index = () => {
         inpaintStrength
       };
 
-      const response = await axios.post(PROXY_API_URL, payload);
+      const response = await axios.post(apiUrl, payload);
       console.log("API Response:", JSON.stringify(response.data, null, 2));
 
       // Update the response handling in handleGenerate:
