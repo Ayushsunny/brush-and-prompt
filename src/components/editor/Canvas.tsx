@@ -71,13 +71,13 @@ const Canvas: React.FC<CanvasProps> = ({
 
     setImageLoaded(false);
     setImageLoadError(false);
-    console.log("Loading image from URL:", imageUrl);
+    // console.log("Loading image from URL:", imageUrl);
 
     const img = new Image();
     img.crossOrigin = "anonymous";
 
     img.onload = () => {
-      console.log("Image loaded successfully, dimensions:", img.width, "x", img.height);
+      console.log("Image loaded successfully");
       setImage(img);
 
       // Calculate scale to fit image in canvas
@@ -139,53 +139,58 @@ const Canvas: React.FC<CanvasProps> = ({
   // Draw function for brush
   const draw = (x: number, y: number) => {
     if (!ctx || !selectionLayer) return;
-
+  
+    console.log("Drawing brush stroke at:", x, y);
+  
     // Create a temporary canvas for the brush stroke
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = canvasRef.current?.width || 0;
     tempCanvas.height = canvasRef.current?.height || 0;
     const tempCtx = tempCanvas.getContext("2d");
-
+  
     if (!tempCtx) return;
-
-    // Copy the current selection layer to the temp canvas
+  
+    // Copy current selection to temporary canvas
     tempCtx.putImageData(selectionLayer, 0, 0);
-
-    // Set drawing style based on mode
+  
+    // Set composite operation based on mode: add or subtract
     tempCtx.globalCompositeOperation = selectionMode === "add" ? "source-over" : "destination-out";
-
-    // Draw the brush stroke
+  
+    // Draw the brush stroke (circle)
     tempCtx.beginPath();
     tempCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
     tempCtx.fillStyle = "rgba(65, 105, 225, 0.5)";
     tempCtx.fill();
-
-    // Get the updated selection layer
+  
+    // Update the selection layer with the new stroke
     const newSelectionLayer = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    console.log("Updated selection layer dimensions:", newSelectionLayer.width, newSelectionLayer.height);
     setSelectionLayer(newSelectionLayer);
-
-    // Redraw everything
+  
+    // Redraw the canvas with image and mask
     redraw();
-
-    // Notify parent component of selection change
+  
+    // Notify parent of the new selection
     onSelectionChange(newSelectionLayer);
   };
 
   // Redraw the canvas with the image and selection
   const redraw = () => {
     if (!ctx || !image || !canvasRef.current || !selectionLayer) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
-    // Draw the image
-    ctx.drawImage(image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-
-    // Draw the selection overlay
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.putImageData(selectionLayer, 0, 0);
-    ctx.restore();
+    const { width, height } = canvasRef.current;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+  
+    // Render the selection mask using a temporary canvas for proper alpha blending
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext("2d");
+    if (tempCtx) {
+      tempCtx.putImageData(selectionLayer, 0, 0);
+      ctx.drawImage(tempCanvas, 0, 0);
+    }
+    console.log("Canvas redrawn with current selection mask");
   };
 
   // Mouse event handlers

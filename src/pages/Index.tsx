@@ -23,7 +23,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
-  const [selectedModel, setSelectedModel] = useState("SD1.5/DreamShaper.safetensors");
+  const [selectedModel, setSelectedModel] = useState("SD1.5/realisticVisionV60B1_v51VAE.safetensors");
   const [steps, setSteps] = useState(20);
   const [cfg, setCfg] = useState(5.0);
   const [growSize, setGrowSize] = useState(15);
@@ -81,32 +81,72 @@ const Index = () => {
   };
 
   // Convert selection mask to base64
-  const selectionToBase64 = (selection: ImageData, originalImageUrl: string, mimeType: string = "image/png"): Promise<string> => {
+  const selectionToBase64 = (
+    selection: ImageData,
+    originalImageUrl: string,
+    mimeType: string = "image/png"
+  ): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
+      img.crossOrigin = "anonymous"; // Ensure CORS is handled for data URLs
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
+        console.log("Original image loaded for mask scaling:", img.width, "x", img.height);
+        const origWidth = img.width;
+        const origHeight = img.height;
+        const scaledWidth = selection.width;
+        const scaledHeight = selection.height;
+        console.log("Scaled mask dimensions:", scaledWidth, "x", scaledHeight);
+        console.log("Calculated scale factors: width =", origWidth / scaledWidth, ", height =", origHeight / scaledHeight);
 
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject("Could not create canvas context");
+        // Create an offscreen full-res canvas
+        const offscreen = document.createElement("canvas");
+        offscreen.width = origWidth;
+        offscreen.height = origHeight;
+        const offscreenCtx = offscreen.getContext("2d");
+        if (!offscreenCtx) {
+          console.error("Could not create offscreen canvas context");
+          reject("Could not create offscreen context");
           return;
         }
 
-        // Create a blank, transparent canvas the size of the original image
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Create a temporary canvas to hold the scaled mask
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = scaledWidth;
+        tempCanvas.height = scaledHeight;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) {
+          console.error("Could not create temporary canvas context");
+          reject("Could not create temporary context");
+          return;
+        }
+        tempCtx.putImageData(selection, 0, 0);
+        console.log("Temporary canvas with mask drawn");
 
-        // Calculate the position to place the selection
-        // This assumes the selection is already in the correct coordinate space
-        // If not, you would need additional scaling logic here
-        ctx.putImageData(selection, 0, 0);
+        // Upscale the mask to full original image resolution
+        offscreenCtx.drawImage(
+          tempCanvas,
+          0,
+          0,
+          scaledWidth,
+          scaledHeight,
+          0,
+          0,
+          origWidth,
+          origHeight
+        );
+        document.body.appendChild(offscreen);
+        console.log("Mask upscaled to original dimensions:", offscreen.width, "x", offscreen.height);
 
-        resolve(canvas.toDataURL(mimeType));
+        const finalDataUrl = offscreen.toDataURL(mimeType);
+        console.log("Final mask Data URL generated");
+        resolve(finalDataUrl);
       };
 
-      img.onerror = () => reject("Failed to load original image");
+      img.onerror = (e) => {
+        console.error("Failed to load original image for mask scaling", originalImageUrl, e);
+        reject("Failed to load original image in selectionToBase64");
+      };
+
       img.src = originalImageUrl;
     });
   };
@@ -127,10 +167,16 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const uploadedMimeType = uploadedImage.startsWith("data:image/jpeg") ? "image/jpeg" : "image/png";
+      const uploadedMimeType = uploadedImage.startsWith("data:image/jpeg")
+        ? "image/jpeg"
+        : "image/png";
 
+      console.log("Starting generation with uploadedMimeType:", uploadedMimeType);
+      console.log("Selection dimensions:", selection.width, selection.height);
       // Use the async function to get properly sized mask
-      const selectionDataUrl = await selectionToBase64(selection, uploadedImage, uploadedMimeType);
+      const selectionDataUrl = await selectionToBase64(
+        selection, uploadedImage, uploadedMimeType
+      );
 
       const payload = {
         uploadedImage,
@@ -312,54 +358,66 @@ const Index = () => {
 
           {/* Right Column: Results */}
           <div className="glass-panel rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-medium">Result</h2>
 
               <div className="flex items-center space-x-2">
-                {generatedImage && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleReset}
-                      className="glass-button"
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reset
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleUseGeneratedImage}
-                      className="glass-button"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Edit This
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleDownload}
-                      className="glass-button"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                  className={cn("glass-button", !generatedImage && "opacity-50 cursor-not-allowed")}
+                  disabled={!generatedImage}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUseGeneratedImage}
+                  className={cn("glass-button", !generatedImage && "opacity-50 cursor-not-allowed")}
+                  disabled={!generatedImage}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Edit This
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownload}
+                  className={cn("glass-button", !generatedImage && "opacity-50 cursor-not-allowed")}
+                  disabled={!generatedImage}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
 
-                {uploadedImage && generatedImage && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleSideBySide}
-                    className="glass-button"
-                  >
-                    <SplitSquareVertical className="h-4 w-4 mr-2" />
-                    {showSideBySide ? "Show Result Only" : "Compare"}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSideBySide}
+                  className={cn("glass-button", (!uploadedImage || !generatedImage) && "opacity-50 cursor-not-allowed")}
+                  disabled={!uploadedImage || !generatedImage}
+                >
+                  <SplitSquareVertical className="h-4 w-4 mr-2" />
+                  {showSideBySide ? "Show Result Only" : "Compare"}
+                </Button>
               </div>
+            </div>
+
+            {/* Status bar */}
+            <div className="mb-4 h-6">
+              {isLoading ? (
+                <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                  <div className="bg-blue-500 h-2 rounded-full animate-loading-bar" style={{ width: '100%' }}></div>
+                </div>
+              ) : (
+                <div className="w-full flex justify-between items-center text-xs text-muted-foreground">
+                  <span>{generatedImage ? "Ready" : "Waiting for generation"}</span>
+                  {prompt && <span className="truncate max-w-[80%]">Prompt: {prompt.substring(0, 60)}{prompt.length > 60 ? '...' : ''}</span>}
+                </div>
+              )}
             </div>
 
             <div className={cn(

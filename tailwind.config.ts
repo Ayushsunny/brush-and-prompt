@@ -105,7 +105,12 @@ export default {
 				'spin-slow': {
 					from: { transform: 'rotate(0deg)' },
 					to: { transform: 'rotate(360deg)' }
-				}
+				},
+				loadingBar: {
+					'0%': { transform: 'translateX(-100%)' },
+					'50%': { transform: 'translateX(30%)' },
+					'100%': { transform: 'translateX(100%)' }
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -116,6 +121,7 @@ export default {
 				'slide-in': 'slide-in 0.3s ease-out',
 				'slide-up': 'slide-up 0.4s ease-out',
 				'pulse-soft': 'pulse-soft 2s infinite ease-in-out',
+				'loading-bar': 'loadingBar 2s infinite ease-in-out',
 				'spin-slow': 'spin-slow 3s linear infinite'
 			},
 			fontFamily: {
